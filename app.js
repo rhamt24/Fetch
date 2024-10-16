@@ -27,25 +27,41 @@ app.get('/fetch-url', async (req, res) => {
     const response = await fetch(url);
     const contentType = response.headers.get('content-type');
 
-    // Only allow text or JSON responses
-    if (!/text|json/.test(contentType)) {
-      return res.send('<h3>Error: Only text or JSON responses are supported</h3>');
+    // Handle JSON response
+    if (contentType.includes('application/json')) {
+      const jsonData = await response.json();
+      res.send(`
+        <html>
+        <head>
+          <link rel="stylesheet" href="/styles.css">
+        </head>
+        <body>
+          <div class="container">
+            <h1>Fetched JSON Data</h1>
+            <pre>${JSON.stringify(jsonData, null, 2)}</pre>
+          </div>
+        </body>
+        </html>
+      `);
+    } else if (/text/.test(contentType)) {
+      // Handle text response
+      const textData = await response.text();
+      res.send(`
+        <html>
+        <head>
+          <link rel="stylesheet" href="/styles.css">
+        </head>
+        <body>
+          <div class="container">
+            <h1>Fetched Text Data</h1>
+            <pre>${textData.slice(0, 65536)}</pre>
+          </div>
+        </body>
+        </html>
+      `);
+    } else {
+      res.send('<h3>Error: Only text or JSON responses are supported</h3>');
     }
-
-    const text = await response.text();
-    res.send(`
-      <html>
-      <head>
-        <link rel="stylesheet" href="/styles.css">
-      </head>
-      <body>
-        <div class="container">
-          <h1>Fetched Data</h1>
-          <pre>${text.slice(0, 65536)}</pre>
-        </div>
-      </body>
-      </html>
-    `);
   } catch (error) {
     res.send(`<h3>Error fetching URL: ${error.message}</h3>`);
   }
