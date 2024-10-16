@@ -1,0 +1,16 @@
+{
+  "name": "my-express-app",
+  "version": "1.0.0",
+  "description": "Simple Express app for fetching URL content and displaying it with a dark mode",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^2.6.7"
+  },
+  "engines": {
+    "node": ">=14.x"
+  }
+}
