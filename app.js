@@ -1,15 +1,15 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
+const util = require('util');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware to serve static files like CSS
+// Middleware to serve static files
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.urlencoded({ extended: true }));
 
-// Route to serve the HTML form from the public folder
+// Serve the HTML form from the public folder
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -24,44 +24,48 @@ app.get('/fetch-url', async (req, res) => {
   }
 
   try {
-    const response = await fetch(url);
-    const contentType = response.headers.get('content-type');
+    // Parse the URL and construct the request
+    let _url = new URL(url);
+    let constructedUrl = `${_url.origin}${_url.pathname}?${_url.searchParams.toString()}`;
 
-    // Handle JSON response
-    if (contentType.includes('application/json')) {
-      const jsonData = await response.json();
-      res.send(`
-        <html>
-        <head>
-          <link rel="stylesheet" href="/styles.css">
-        </head>
-        <body>
-          <div class="container">
-            <h1>Fetched JSON Data</h1>
-            <pre>${JSON.stringify(jsonData, null, 2)}</pre>
-          </div>
-        </body>
-        </html>
-      `);
-    } else if (/text/.test(contentType)) {
-      // Handle text response
-      const textData = await response.text();
-      res.send(`
-        <html>
-        <head>
-          <link rel="stylesheet" href="/styles.css">
-        </head>
-        <body>
-          <div class="container">
-            <h1>Fetched Text Data</h1>
-            <pre>${textData.slice(0, 65536)}</pre>
-          </div>
-        </body>
-        </html>
-      `);
-    } else {
-      res.send('<h3>Error: Only text or JSON responses are supported</h3>');
+    let response = await fetch(constructedUrl);
+    let contentType = response.headers.get('content-type');
+    let contentLength = response.headers.get('content-length');
+    
+    // Check if content length exceeds the limit (100MB in this case)
+    if (contentLength > 100 * 1024 * 1024) {
+      return res.send(`<h3>Error: Content too large (Size: ${contentLength} bytes)</h3>`);
     }
+
+    // Check content type
+    if (!/text|json/.test(contentType)) {
+      return res.send(`<h3>Error: Unsupported content type: ${contentType}</h3>`);
+    }
+
+    // Fetch the content as buffer and try to format it as JSON if possible
+    let data = await response.buffer();
+    let result;
+
+    try {
+      result = util.format(JSON.parse(data.toString()));
+    } catch (e) {
+      result = data.toString();  // If it's not JSON, return as plain text
+    }
+
+    // Return the result formatted in HTML
+    res.send(`
+      <html>
+      <head>
+        <link rel="stylesheet" href="/styles.css">
+      </head>
+      <body>
+        <div class="container">
+          <h1>Fetched Data</h1>
+          <pre>${result.slice(0, 65536)}</pre>  <!-- Show up to 65536 characters -->
+        </div>
+      </body>
+      </html>
+    `);
   } catch (error) {
     res.send(`<h3>Error fetching URL: ${error.message}</h3>`);
   }
